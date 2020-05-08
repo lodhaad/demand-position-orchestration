@@ -4,6 +4,8 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -41,6 +43,8 @@ public class PositionProcessController {
 
 	@Autowired
 	private RestTemplate template;
+	
+	Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	@GetMapping("/health")
 	public String health() {
@@ -91,16 +95,21 @@ public class PositionProcessController {
 
 		}
 		
+		logger.info("Before calling Save Positions microservice");
+		
 		/// send it to positions service to save it 
 
 		List<PositionAPIOutput> positionOutput = savePositionViaAPI(postionAPIList, clientId, date);
 
 		/// get response
 		
+		logger.info("After calling Save  Positions microservice");
+		
 		/// for each postions
 
 		for (PositionAPIOutput positionStored : positionOutput) {
 			
+			logger.info("Before getting the fullfilled demand from DemandFullfillService" );
 			
 			/// check the demand by date , client , security
 			
@@ -108,6 +117,8 @@ public class PositionProcessController {
 					, positionStored.getSecurityId());
 
 			// if exists get the source ( internal or external)
+			
+			logger.info("After  getting the fullfilled demand from DemandFullfillService" );
 			
 			if ( demandAPIOutput != null ) {
 				
@@ -117,7 +128,11 @@ public class PositionProcessController {
 				
 				if (demandAPIOutput.getSourceType().equals("E")) {
 					
+					logger.info("Before getting the supply from SupplyService for the security " );
+					
 					supplyAPI = getSupply(demandAPIOutput.getSourceId());
+					
+					logger.info("After getting the supply from SupplyService for the security " );
 					
 				}
 				else {
@@ -134,8 +149,12 @@ public class PositionProcessController {
 				demandContract.setAskedQuantity(demandAPIOutput.getQuantity());
 				demandContract.setAskedRate(demandAPIOutput.getRate());
 				
+				logger.info("Before saving new demand contract using demand contract Service" );
+				
 				
 				DemandContractAPIOutput demandFullfillId = saveDemandContract(demandContract);
+				
+				logger.info("After saving new demand contract using demand contract Service" );
 				
 				
 				
@@ -149,8 +168,12 @@ public class PositionProcessController {
 					supplyContract.setOriginalQuantity(demandAPIOutput.getQuantity());
 					supplyContract.setActivityType("N");
 					supplyContract.setOriginalRate(supplyAPI.getRate());
+					///calll the pricing service to get the price
 					supplyContract.setCurrentPrice(0.0d);
+					
+					logger.info("Before saving new supply contract using supply contract Service" );
 					saveSupplyContract(supplyContract);
+					logger.info("Before saving new supply contract using supply contract Service" );
 					
 					
 					
